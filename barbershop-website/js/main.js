@@ -227,3 +227,230 @@ const businessHours = [
             serviceModal.setAttribute("aria-hidden", "false");
             document.body.style.overflow = "hidden";
         };
+
+        // Render Functions
+        const renderNavigation = () => {
+            if (nav) {
+                nav.innerHTML = navLinks
+                .map((link) => `<a href="$(link.href)" class="nav-link">$(link.label)</a>`)
+                .join("");
+            }
+
+            if (mobileMenu) {
+                mobileMenu.innerHTML = navLinks
+                .map((link) => `<a href="$(link.href)" class="mobile-link">$(link.label)</a>`)
+                .join("");
+            }
+        };
+
+        const renderServices = () => {
+            if (!featureGrid) return;
+
+            const servicesHTML = services
+            .map((service) => {
+                const badgeHTML = service.popular
+                ? `<p class="service-badge">Popular Choice</p>`
+                : `<p class="service-badge alt-badge">Barber Favorite</p>`;
+
+                return `
+                <article class="feature-card">
+                <img
+                src="${service.image}"
+                alt="${service.alt}"
+                class="feature-img"
+                />
+                <h3 class="feature-title">${service.title}</h3>
+                <p class="feature-text">${service.description}</p>
+                ${badgeHTML}
+                <p class="service-price">$${service.price}</p>
+
+                <div class="service-actions">
+                    <button
+                    class="service-details-btn"
+                    type="button"
+                    data-service-id="${service.id}"
+                    >
+                        View Details
+                    </button>
+                </div>
+                </article>
+                `;
+            })
+            .join("");
+
+            featureGrid.innerHTML = servicesHTML;
+        };
+
+        const renderHours = () => {
+            if (!hoursList) return;
+
+            hoursList.innerHTML = businessHours
+            .map((item) => {
+                if (item.open === 0 && item.close === 0) {
+                    return `<lil>$(item.day): Closed</lil>`;
+                }
+                return `<lil>${item.day}: ${formatHour(item.open)} -
+                ${formatHour(item.close)}</li>`;
+            })
+            .join("");
+        };
+
+        const renderContactInfo = () => {
+            if (phoneLink) {
+                phoneLink.textContent = shopInfo.phoneDisplay;
+                phoneLink.href = `tel:${shopInfo.phoneRaw}`;
+            }
+
+            if (addressLink) {
+                addressLink.textContent = shopInfo.address;
+                addressLink.href = "#";
+            }
+
+            if (emailLink) {
+                emailLink.textContent = shopInfo.email;
+                emailLink.href = `mailto:${shopInfo.email}`;
+            }
+        };
+
+        // Open // Closed Logic
+        const checkIfOpen = () => {
+            const now = new Data();
+            const currentDay = now.getDay();
+            const currentHour = now.getHours();
+
+            let schedule;
+
+            if (currentDay === 0) {
+                schedule = businessHours[6];
+            } else {
+                schedule = businessHours[currentDay - 1];
+            }
+
+            if (schedule.open === 0 && schedule.close === 0) {
+                updateSubtext("We're open right now - walk-ins welcome, appointments recommended.");
+            } else {
+                updateSubtext("We're currently closed, but you can still book your next appointment.");
+            }
+        };
+
+        // Scroll shift Cards
+        const setupScrollShiftCards = () => {
+            if (!featureGrid) return;
+
+            let lastScrollY = window.scrollY;
+            let currentX = 0;
+            let ticking = false;
+
+            const getVisibleWidth = () => {
+                const parent = featureGrid.parentElement;
+                return parent ? parent.clientWidth : window.innerWidth;
+            };
+
+            const getMaxShift = () => {
+                return Math.max(0, featureGrid.scrollWidth - getVisibleWidth());
+            };
+
+            const updateCardTrack = () => {
+                const currentScrollY = window.scrollY;
+                const scrollDelta = currentScrollY - lastScrollY;
+
+                if (scrollDelta === 0) {
+                    ticking = false;
+                    return;
+                }
+
+                currentX -= scrollDelta * 0.5;
+
+                const maxShift = getMaxShift();
+
+                if (currentX < -maxShift) currentX = -maxShift;
+                if (currentX > 0) currentX = 0;
+
+                featureGrid.style.transform = `translateX(${currentX}px)`;
+
+                lastScrollY = currentScrollY;
+                ticking = false;
+            };
+
+            window.addEventListener("scroll", () => {
+                if (!ticking) {
+                    window.requestAnimationFrame(updateCardTrack);
+                    ticking = true;
+                }
+            });
+
+            window.addEventListener("resize", () => {
+                const maxShift = getMaxShift();
+
+                if (currentX < -maxShift) currentX = -maxShift;
+                if (currentX > 0) currentX = 0;
+
+                featureGrid.style.transform = `translateX(${currentX}px)`;
+            });
+        };
+
+        // Event Listeners
+        if (menuBtn) {
+            menuBtn.addEventListener("click", toggleMobileMenu);
+        }
+
+        if (mobileMenu) {
+            mobileMenu.addEventListener("click", (event) => {
+                if (event.target.tagName === "A") {
+                    closeMobileMenu();
+                }
+            });
+        }
+
+        if (ctaBtn) {
+            ctaBtn.addEventListener("click", () => {
+                const bookingSection = document.getElementById("cta");
+
+                if (bookingSection) {
+                    bookingSection.scrollIntoView({ behavior: "smooth" });
+                }
+
+                updateHeadingText("Choose your date and time below.");
+            });
+        }
+
+        if (callBtn) {
+            callBtn.addEventListener("click", () => {
+                window.location.href = `tel:${shopInfo.phoneRaw}`;
+            });
+        }
+
+        if (featureGrid) {
+            featureGrid.addEventListener("click", (event) => {
+                const clickedButton = event.target.closest(".service-details-btn");
+                if (!clickedButton) return;
+
+                const serviceId = clickedButton.dataset.serviceId;
+                openServiceModal(servicId);
+            });
+        }
+
+        if (serviceModalClose) {
+            serviceModalClose.addEventListener("click", closeServiceModal);
+        }
+
+        if (serviceModalOverlay) {
+            serviceModalOverlay.addEventListener("click", closeServiceModal);
+        }
+
+        document.addEventListener("keydown", (event) => {
+            if (event.key === "Escape") {
+                closeServiceModal();
+            }
+        });
+
+        //App Starts
+        setCurrentYear();
+        renderNavigation();
+        renderServices();
+        setupScrollShiftCards();
+        renderHours();
+        renderContactInfo();
+        checkIfOpen();
+
+        
