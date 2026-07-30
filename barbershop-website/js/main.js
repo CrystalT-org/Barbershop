@@ -25,6 +25,8 @@ const heroSubtext = document.getElementById("heroSubtext");
 
 // Modal Elements
 const serviceModal = document.getElementById("serviceModal");
+
+
 // const?(), serviceModal?(), =(), document (), .(), getElementById(), (), ""(),
 const serviceModalOverlay = document.getElementById("serviceModalOverlay");
 
@@ -453,4 +455,3 @@ const businessHours = [
         renderContactInfo();
         checkIfOpen();
 
-        
