@@ -116,18 +116,15 @@ const getSlotsForDate = (year, month, day) => {
     return weekdaySlots;
 };
 
-//Render Calendar
+// Render Calendar
 const renderCalendar = () => {
     if (!calendarGrid || !calendarMonthLabel) return;
-
-    // if the calendar is not (!) available, don't run!
-    // if the monthlabel is not (!) available, don't run!
 
     calendarMonthLabel.textContent = `${getMonthName(currentMonth)} ${currentYear}`;
     calendarGrid.innerHTML = "";
 
     const firstDayOfMonth = new Date(currentYear, currentMonth, 1).getDay();
-    const daysInMonth = new Date(currentYear, currentMonth +1, 0).getDay();
+    const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
 
     for (let i = 0; i < firstDayOfMonth; i++) {
         const emptyCell = document.createElement("div");
@@ -151,7 +148,8 @@ const renderCalendar = () => {
         }
 
         if (isPastDate(currentYear, currentMonth, day) || isClosedDay(currentYear, currentMonth, day)) {
-            dayButton.classList.add("disabeled");
+            dayButton.classList.add("disabled");
+            dayButton.disabled = true;
         }
 
         if (
@@ -177,7 +175,7 @@ const renderCalendar = () => {
             selectedTime = "";
             selectedTimeInput.value = "";
 
-            selectedSateText.textContent = formatReadableDate(currentYear, currentMonth, day);
+            if (selectedDataText) selectedDataText.textContent = formatReadableDate(currentYear, currentMonth, day);
             renderCalendar();
             renderTimeSlots();
             bookingMessage.textContent = "";
@@ -186,40 +184,127 @@ const renderCalendar = () => {
 
         calendarGrid.appendChild(dayButton);
     }
+};
 
-    // Render Time Slots
-    const renderTimeSlots = () => {
-        if (!timeslots) return;
+// Render Time Slots (separate so it can be called independently)
+const renderTimeSlots = () => {
+    if (!timeSlots) return;
 
-        timeSlots.innerHTML = "";
+    timeSlots.innerHTML = "";
 
-        if (!selectedDate) {
-            timeSlots.innerHTML = `<p class="selected-date-text">Choose a date first.</p>`;
-            return;
-        }
-
-        const slots = getSlotsForDate(selectedDate.year, selectedDate.month, selectedDate.day);
-        const bookedForDay = bookedAppointments[selectedDate.month] || [];
-
-        if (slots.length === 0) {
-            timeSlots.innerHTML = `<p class="selected-date-text">No appointments available for this date.</p>`;
-            return;
-        }
-
-        for (let i = 0; i < slots.length; i++) {
-            const slot = slots[i];
-            const slotBtn = document.createElement("button");
-
-            slotBtn.type = "button";
-            slotBtn.textContent = slot;
-            slotBtn.className = "time-slot-btn";
-
-            if (bookedForDay.includes(slot)) {
-                slotBtn.classList.add("disabled");
-                slotBtn.disabled = true;
-                slotBtn.textContent = `${slot} - Booked`;
-            }
-        }
+    if (!selectedDate) {
+        timeSlots.innerHTML = `<p class="selected-date-text">Choose a date first.</p>`;
+        return;
     }
+
+    const slots = getSlotsForDate(selectedDate.year, selectedDate.month, selectedDate.day);
+    const bookedForDay = bookAppointments[selectedDate.key] || [];
+
+    if (slots.length === 0) {
+        timeSlots.innerHTML = `<p class="selected-date-text">No appointments available for this date.</p>`;
+        return;
+    }
+
+    for (let i = 0; i < slots.length; i++) {
+        const slot = slots[i];
+        const slotBtn = document.createElement("button");
+
+        slotBtn.type = "button";
+        slotBtn.textContent = slot;
+        slotBtn.className = "time-slot-btn";
+
+        if (bookedForDay.includes(slot)) {
+            slotBtn.classList.add("disabled");
+            slotBtn.disabled = true;
+            slotBtn.textContent = `${slot} - Booked`;
+        }
+
+        if (selectedTime === slot) {
+            slotBtn.classList.add("selected");
+        }
+
+        slotBtn.addEventListener("click", () => {
+            selectedTime = slot;
+            selectedTimeInput.value = slot;
+            renderTimeSlots();
+        });
+
+        timeSlots.appendChild(slotBtn);
+    }
+};
+
+// Month Navigation
+if (prevMonthBtn) {
+    prevMonthBtn.addEventListener("click", () => {
+        currentMonth--;
+
+        if (currentMonth < 0) {
+            currentMonth = 11;
+            currentYear--;
+        }
+
+        renderCalendar();
+    });
 }
+
+if (nextMonthBtn) {
+    nextMonthBtn.addEventListener("click", () => {
+        currentMonth++;
+
+        if (currentMonth > 11) {
+            currentMonth = 0;
+            currentYear++;
+        }
+
+        renderCalendar();
+    });
+}
+
+// Booking Submit
+if (bookingForm) {
+    bookingForm.addEventListener("submit", (event) => {
+        event.preventDefault();
+
+        const nameValue = customerName.value.trim();
+        const serviceValue = customerService.value;
+        const timeValue = selectedTimeInput.value;
+
+        if (nameValue === "" || serviceValue === "" || !selectedDate || timeValue === "") {
+            bookingMessage.textContent = "Please choose a date, time, name, and service.";
+            bookingMessage.className = "booking-message error";
+            return;
+        }
+
+        if (!bookedAppointments[selectedDate.key]) {
+            bookedAppointments[selectedDate.key] = [];
+        }
+
+        if (bookedAppointments[selectedDate.key].includes(timeValue)) {
+            bookingMessage.textContent = "That time was just taken. Please choose another.";
+            bookingMessage.className = "booking-message-error";
+            renderTimeSlots();
+            return;
+        }
+
+        bookedAppointments[selectedDate.key].push(timeValue);
+
+        bookingMessage.textContent = `${nameValue}, your ${serviceValue} appointment is booked for ${formatReadableDate(
+        selectedDate.year,
+        selectedDate.month,
+        selectedDate.day
+        )} at ${timeValue}.`;
+
+        bookingMessage.className = "booking-message success";
+
+        bookingForm.reset();
+        selectedTime = "";
+        selectedTimeInput.value = "";
+
+        renderTimeSlots();
+    });
+}
+
+// App Start
+renderCalendar();
+renderTimeSlots();
 
